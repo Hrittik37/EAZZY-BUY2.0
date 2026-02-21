@@ -1423,7 +1423,10 @@
     .analysis-results { display: none; }
     .analysis-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 1rem; margin-bottom: 1rem; }
     .analysis-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1rem; }
-    .analysis-main { display: flex; gap: 1rem; }
+    .analysis-main { display: grid; grid-template-columns: 150px 1fr; gap: 1rem; align-items: start; }
+    .analysis-right-section { display: flex; flex-direction: column; gap: 1rem; }
+    .analysis-content { flex: 1; }
+    .analysis-actions { display: flex; align-items: center; justify-content: flex-end; }
     .analysis-img { width: 150px; height: 150px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface2); overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
     .analysis-img img { width: 80%; height: 80%; object-fit: contain; }
     .analysis-name { font-size: 1.2rem; font-weight: 700; line-height: 1.35; margin-bottom: .5rem; }
@@ -1434,6 +1437,18 @@
     .analysis-reco.buy { color: var(--accent); border-color: rgba(201,255,60,.35); background: rgba(201,255,60,.08); }
     .analysis-reco.wait { color: var(--accent2); border-color: rgba(255,77,46,.35); background: rgba(255,77,46,.08); }
     .analysis-reco.na { color: var(--muted); }
+    .analysis-buy-btn {
+      display: inline-flex; align-items: center; gap: .5rem;
+      border: 1px solid rgba(201,255,60,.3); background: rgba(201,255,60,.08);
+      color: var(--accent); border-radius: 8px; padding: .6rem .8rem;
+      font-family: 'JetBrains Mono', monospace; font-size: .8rem; letter-spacing: .5px;
+      text-transform: uppercase; cursor: none;
+      transition: background .2s, border-color .2s;
+    }
+    .analysis-buy-btn:hover {
+      background: rgba(201,255,60,.15); border-color: rgba(201,255,60,.4);
+    }
+    .analysis-buy-btn svg { width: 16px; height: 16px; }
     .analysis-stats { display: grid; grid-template-columns: 1fr 1fr; gap: .7rem; }
     .analysis-stat { border: 1px solid var(--border); border-radius: 8px; padding: .65rem; background: var(--surface2); }
     .analysis-stat-label { font-family: 'JetBrains Mono', monospace; font-size: .65rem; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: .3rem; }
@@ -2545,16 +2560,28 @@
         <div class="analysis-img">
           <img id="analysisImage" src="" alt="Analyzed product" loading="lazy">
         </div>
-        <div>
-          <div class="analysis-name" id="analysisName">Product</div>
-          <div class="analysis-meta">
-            <span class="analysis-pill" id="analysisSource">Source</span>
-            <span class="analysis-pill" id="analysisCheapest">Cheapest: N/A</span>
-            <span class="analysis-pill" id="analysisDiff">Diff: N/A</span>
+        <div class="analysis-right-section">
+          <div class="analysis-content">
+            <div class="analysis-name" id="analysisName">Product</div>
+            <div class="analysis-meta">
+              <span class="analysis-pill" id="analysisSource">Source</span>
+              <span class="analysis-pill" id="analysisCheapest">Cheapest: N/A</span>
+              <span class="analysis-pill" id="analysisDiff">Diff: N/A</span>
+            </div>
+            <div class="analysis-price" id="analysisCurrentPrice">Rs 0</div>
+            <div class="analysis-reco na" id="analysisRecommendation">Recommendation: N/A</div>
+            <div class="analysis-warning" id="analysisWarning" style="display:none"></div>
           </div>
-          <div class="analysis-price" id="analysisCurrentPrice">Rs 0</div>
-          <div class="analysis-reco na" id="analysisRecommendation">Recommendation: N/A</div>
-          <div class="analysis-warning" id="analysisWarning" style="display:none"></div>
+          <div class="analysis-actions">
+            <button class="analysis-buy-btn" id="analysisBuyBtn" onclick="buyAnalyzedProduct()" style="display:none;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.1 5H19M7 13v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3"/>
+                <circle cx="9" cy="21" r="1"/>
+                <circle cx="20" cy="21" r="1"/>
+              </svg>
+              Buy Now
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -3729,6 +3756,14 @@
     checkCompareReady();
   }
 
+  function buyAnalyzedProduct() {
+    const urlEl = document.getElementById('analysisUrl');
+    const url = urlEl.href;
+    if (url && url !== '#') {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  }
+
   function checkCompareReady() {
     const btn = document.getElementById('btnCompareNow');
     btn.disabled = !(product1 && product2);
@@ -4521,6 +4556,13 @@
         const urlEl = document.getElementById('analysisUrl');
         urlEl.href = resolvedUrl || '#';
         urlEl.textContent = resolvedUrl || 'No URL available';
+
+        const buyBtn = document.getElementById('analysisBuyBtn');
+        if (resolvedUrl) {
+          buyBtn.style.display = 'inline-flex';
+        } else {
+          buyBtn.style.display = 'none';
+        }
 
         const platformCount = Array.isArray(data.platforms_found) ? data.platforms_found.length : 0;
         const summary = [];
