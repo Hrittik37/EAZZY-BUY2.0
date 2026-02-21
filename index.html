@@ -751,13 +751,19 @@
     }
     .cmp-btn-compare:hover { background: rgba(60,255,223,.15); }
     .cmp-btn-remove {
+      min-width: 34px;
       padding: .52rem .65rem;
       background: rgba(255,77,46,.06);
       color: var(--accent2);
       border: 1px solid rgba(255,77,46,.2);
       border-radius: 5px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       font-family: 'JetBrains Mono', monospace;
-      font-size: .68rem;
+      font-size: 1rem;
+      font-weight: 700;
+      line-height: 1;
       cursor: none;
       transition: background .2s;
     }
@@ -3457,27 +3463,163 @@
   });
 
   /*  VIEW MORE DEALS  */
-  let dealsExpanded = false;
-  function toggleMoreDeals() {
-    const row3 = document.getElementById('deals-row-3');
-    const btn  = document.getElementById('viewMoreBtn');
-    const icon = document.getElementById('vmIcon');
-    dealsExpanded = !dealsExpanded;
-    if (dealsExpanded) {
-      row3.classList.add('show');
-      btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="vmIcon" style="width:16px;height:16px;transform:rotate(180deg)"><path d="M6 9l6 6 6-6"/></svg> Show Less`;
-      // observe new cards
-      row3.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
-    } else {
-      row3.classList.remove('show');
-      btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="vmIcon" style="width:16px;height:16px"><path d="M6 9l6 6 6-6"/></svg> View More Deals`;
+  const TRENDING_CARDS_PER_ROW = 5;
+  const TRENDING_ROWS_PER_CLICK = 2;
+  const TRENDING_BATCH_SIZE = TRENDING_CARDS_PER_ROW * TRENDING_ROWS_PER_CLICK;
+  let trendingDealsData = [];
+  let trendingRenderedCount = 0;
+
+  function ensureTrendingMoreContainer() {
+    let container = document.getElementById('deals-more-container');
+    if (container) return container;
+
+    const row2 = document.getElementById('deals-row-2');
+    const moreBtn = document.getElementById('viewMoreBtn');
+    const moreWrap = moreBtn ? moreBtn.parentElement : null;
+    if (!row2 || !moreWrap || !row2.parentNode) return null;
+
+    container = document.createElement('div');
+    container.id = 'deals-more-container';
+    row2.parentNode.insertBefore(container, moreWrap);
+    return container;
+  }
+
+  function getOrCreateTrendingExtraRow(rowIndex) {
+    const container = ensureTrendingMoreContainer();
+    if (!container) return null;
+
+    let row = container.querySelector(`[data-trending-row="${rowIndex}"]`);
+    if (!row) {
+      row = document.createElement('div');
+      row.className = 'product-grid';
+      row.style.marginTop = '1rem';
+      row.dataset.trendingRow = String(rowIndex);
+      container.appendChild(row);
     }
+    return row;
+  }
+
+  function resetTrendingRows() {
+    const row1 = document.getElementById('deals-row-1');
+    const row2 = document.getElementById('deals-row-2');
+    const row3 = document.getElementById('deals-row-3');
+    const container = ensureTrendingMoreContainer();
+
+    if (row1) row1.innerHTML = '';
+    if (row2) row2.innerHTML = '';
+    if (container) container.innerHTML = '';
+
+    // Keep legacy hidden row empty so old static cards never reappear.
+    if (row3) {
+      row3.innerHTML = '';
+      row3.classList.remove('show');
+      row3.style.display = 'none';
+    }
+  }
+
+  function updateTrendingMoreButton() {
+    const moreBtn = document.getElementById('viewMoreBtn');
+    if (!moreBtn) return;
+    const hasMore = trendingRenderedCount < trendingDealsData.length;
+    moreBtn.style.display = hasMore ? 'inline-flex' : 'none';
+    moreBtn.innerHTML = `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="vmIcon" style="width:16px;height:16px"><path d="M6 9l6 6 6-6"/></svg>
+      View More Deals
+    `;
+  }
+
+  function renderTrendingBatch() {
+    const row1 = document.getElementById('deals-row-1');
+    const row2 = document.getElementById('deals-row-2');
+    if (!row1 || !row2 || trendingDealsData.length === 0) {
+      updateTrendingMoreButton();
+      return;
+    }
+
+    const start = trendingRenderedCount;
+    const end = Math.min(start + TRENDING_BATCH_SIZE, trendingDealsData.length);
+    for (let i = start; i < end; i++) {
+      const deal = trendingDealsData[i];
+      const card = createTrendingCard(deal, i);
+      if (i < TRENDING_CARDS_PER_ROW) {
+        row1.appendChild(card);
+      } else if (i < TRENDING_CARDS_PER_ROW * 2) {
+        row2.appendChild(card);
+      } else {
+        const extraIndex = i - (TRENDING_CARDS_PER_ROW * 2);
+        const extraRowIndex = Math.floor(extraIndex / TRENDING_CARDS_PER_ROW);
+        const extraRow = getOrCreateTrendingExtraRow(extraRowIndex);
+        if (extraRow) extraRow.appendChild(card);
+      }
+    }
+
+    trendingRenderedCount = end;
+    updateTrendingMoreButton();
+
+    if (typeof observer !== 'undefined') {
+      row1.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+      row2.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+      const container = ensureTrendingMoreContainer();
+      if (container) {
+        container.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+      }
+    }
+  }
+
+  function toggleMoreDeals() {
+    renderTrendingBatch();
   }
 
   /*  COMPARE SYSTEM  */
   let compareList = []; // array of product data objects (max 4)
 
+  function parseCardSpecs(rawSpecs) {
+    const text = String(rawSpecs || '').trim();
+    if (!text) return {};
+    try {
+      const parsed = JSON.parse(text);
+      return (parsed && typeof parsed === 'object') ? parsed : {};
+    } catch (error) {
+      return {};
+    }
+  }
+
+  function buildMarketplaceUrl(name, store) {
+    const query = encodeURIComponent(String(name || '').trim().slice(0, 80));
+    if (!query) return '';
+    return String(store || '').toUpperCase() === 'FLIPKART'
+      ? `https://www.flipkart.com/search?q=${query}`
+      : `https://www.amazon.in/s?k=${query}`;
+  }
+
+  function wireDealButton(card, explicitUrl = '') {
+    if (!card) return;
+    const dealBtn = card.querySelector('.card-deal-btn');
+    if (!dealBtn || dealBtn.dataset.bound === 'true') return;
+    dealBtn.dataset.bound = 'true';
+
+    dealBtn.addEventListener('click', () => {
+      const buyUrl = String(
+        explicitUrl ||
+        card.dataset.buyUrl ||
+        buildMarketplaceUrl(card.dataset.name, card.dataset.store)
+      ).trim();
+      if (buyUrl) {
+        window.open(buyUrl, '_blank', 'noopener,noreferrer');
+      } else {
+        showToast('Deal link unavailable for this product');
+      }
+    });
+  }
+
+  function wireInitialTrendingDealButtons() {
+    document.querySelectorAll('#trending .product-card').forEach((card) => {
+      wireDealButton(card);
+    });
+  }
+
   function getCardData(card) {
+    if (!card) return null;
     return {
       id:    card.dataset.id,
       name:  card.dataset.name,
@@ -3488,7 +3630,7 @@
       score: card.dataset.score,
       store: card.dataset.store,
       img:   card.dataset.img,
-      specs: JSON.parse(card.dataset.specs || '{}')
+      specs: parseCardSpecs(card.dataset.specs)
     };
   }
 
@@ -3502,6 +3644,10 @@
   function addToCompare(btn) {
     const card = btn.closest('.product-card');
     const data = getCardData(card);
+    if (!data || !data.id) {
+      showToast('Could not read product details');
+      return;
+    }
     const already = compareList.find(p => p.id === data.id);
     if (already) {
       removeFromCompare(data.id);
@@ -3571,7 +3717,7 @@
         </div>
         <div class="cmp-card-footer">
           <button class="cmp-btn-compare" onclick="openSpecTable('${p.id}')">View Specs</button>
-          <button class="cmp-btn-remove" onclick="removeFromCompare('${p.id}')"></button>
+          <button class="cmp-btn-remove" onclick="removeFromCompare('${p.id}')" title="Remove product" aria-label="Remove product">×</button>
         </div>
       `;
       row.appendChild(card);
@@ -3951,6 +4097,8 @@
     if (e.target.id === 'specModal') closeSpecModal();
   });
 
+  wireInitialTrendingDealButtons();
+
   /*  BUDGET FILTER  */
   // Load budget products from backend data.csv endpoint
   const budgetCategoryNames = {
@@ -4006,6 +4154,7 @@
     card.dataset.store = store;
     card.dataset.img = imageUrl;
     card.dataset.specs = JSON.stringify(specs);
+    card.dataset.buyUrl = String(product.buy_url || '').trim();
 
     card.innerHTML = `
       <div class="card-img">
@@ -4030,15 +4179,7 @@
       </div>
     `;
 
-    const dealBtn = card.querySelector('.card-deal-btn');
-    if (dealBtn) {
-      dealBtn.addEventListener('click', () => {
-        const buyUrl = String(product.buy_url || '').trim();
-        if (buyUrl) {
-          window.open(buyUrl, '_blank', 'noopener,noreferrer');
-        }
-      });
-    }
+    wireDealButton(card, String(product.buy_url || '').trim());
 
     const compareBtn = card.querySelector('.card-compare-btn');
     if (compareBtn) {
@@ -4165,6 +4306,7 @@
       card.dataset.store = store;
       card.dataset.img = imageUrl;
       card.dataset.specs = JSON.stringify(specs);
+      card.dataset.buyUrl = String(deal.buy_url || '').trim();
 
       card.innerHTML = `
         <div class="card-img">
@@ -4192,15 +4334,7 @@
         </div>
       `;
 
-      const dealBtn = card.querySelector('.card-deal-btn');
-      if (dealBtn) {
-        dealBtn.addEventListener('click', () => {
-          const buyUrl = String(deal.buy_url || '').trim();
-          if (buyUrl) {
-            window.open(buyUrl, '_blank', 'noopener,noreferrer');
-          }
-        });
-      }
+      wireDealButton(card, String(deal.buy_url || '').trim());
 
       const compareBtn = card.querySelector('.card-compare-btn');
       if (compareBtn) {
@@ -4217,44 +4351,24 @@
       if (!row1 || !row2 || !row3) return;
 
       try {
-        const response = await fetch(`${API_URL}/api/deals/trending?limit=15`, {
+        const response = await fetch(`${API_URL}/api/deals/trending?limit=30`, {
           credentials: 'include'
         });
         if (!response.ok) return;
 
         const data = await response.json();
-        if (!data.success || !Array.isArray(data.deals) || data.deals.length === 0) return;
-
-        row1.innerHTML = '';
-        row2.innerHTML = '';
-        row3.innerHTML = '';
-
-        data.deals.forEach((deal, index) => {
-          const card = createTrendingCard(deal, index);
-          if (index < 5) {
-            row1.appendChild(card);
-          } else if (index < 10) {
-            row2.appendChild(card);
-          } else {
-            row3.appendChild(card);
-          }
-        });
-
-        const moreBtn = document.getElementById('viewMoreBtn');
-        if (moreBtn) {
-          if (row3.children.length === 0) {
-            moreBtn.style.display = 'none';
-            row3.classList.remove('show');
-          } else {
-            moreBtn.style.display = 'inline-flex';
-          }
+        if (!data.success || !Array.isArray(data.deals) || data.deals.length === 0) {
+          trendingDealsData = [];
+          trendingRenderedCount = 0;
+          resetTrendingRows();
+          updateTrendingMoreButton();
+          return;
         }
 
-        if (typeof observer !== 'undefined') {
-          [row1, row2, row3].forEach(row => {
-            row.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
-          });
-        }
+        trendingDealsData = data.deals;
+        trendingRenderedCount = 0;
+        resetTrendingRows();
+        renderTrendingBatch();
       } catch (error) {
         console.error('Failed to load trending deals:', error);
       }

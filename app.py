@@ -37,9 +37,9 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 CORS(app, supports_credentials=True)
 
-USERS_FILE = 'users.csv'
-DEALS_DATA_FILE = 'data.csv'
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+USERS_FILE = os.path.join(BASE_DIR, 'users.csv')
+DEALS_DATA_FILE = os.path.join(BASE_DIR, 'data.csv')
 STATIC_DIR = os.path.join(BASE_DIR, 'static')
 FRONTEND_HTML_FILES = {'index.html', 'login.html'}
 
@@ -88,6 +88,38 @@ def _build_marketplace_url(product_name, store):
         if str(store).upper() == 'FLIPKART'
         else f"https://www.amazon.in/s?k={q}"
     )
+
+
+def _parse_specs(raw_specs, fallback=None):
+    specs = {}
+    parsed = {}
+
+    if isinstance(raw_specs, dict):
+        parsed = raw_specs
+    elif isinstance(raw_specs, str):
+        text = raw_specs.strip()
+        if text:
+            try:
+                maybe = json.loads(text)
+                if isinstance(maybe, dict):
+                    parsed = maybe
+            except Exception:
+                parsed = {}
+
+    for key, value in (parsed or {}).items():
+        k = str(key).strip()
+        v = str(value).strip()
+        if k and v:
+            specs[k] = v
+
+    if isinstance(fallback, dict):
+        for key, value in fallback.items():
+            k = str(key).strip()
+            v = str(value).strip()
+            if k and v and k not in specs:
+                specs[k] = v
+
+    return specs
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -265,6 +297,13 @@ def _compute_trending_deals(limit=15):
         store = _store_from_product_id(row.get('ProductID'))
         seed  = abs(hash(str(row.get('ProductID')))) % 8
         cat   = str(row.get('Category') or row.get('SubCategory') or 'Products').strip()
+        specs = _parse_specs(
+            row.get('Specifications'),
+            fallback={
+                'Brand': str(row.get('Brand') or 'Unknown'),
+                'Category': cat,
+            },
+        )
         deals.append({
             'id': str(row.get('ProductID')),
             'name': name,
@@ -277,7 +316,7 @@ def _compute_trending_deals(limit=15):
             'old_price': round(old, 2),
             'discount_pct': disc,
             'image_url': str(row.get('ImageURL') or '').strip(),
-            'specs': {'Brand': str(row.get('Brand') or 'Unknown'), 'Category': cat},
+            'specs': specs,
             'buy_url': _build_marketplace_url(name, store),
         })
 
@@ -296,7 +335,7 @@ def _load_budget_products():
         return cached.copy()
 
     usecols = ['InvoiceDate', 'ProductID', 'Description', 'Brand',
-               'Category', 'SubCategory', 'UnitPrice', 'ImageURL']
+               'Category', 'SubCategory', 'UnitPrice', 'ImageURL', 'Specifications']
     df = pd.read_csv(DEALS_DATA_FILE, usecols=lambda c: c in usecols)
     df['UnitPrice']   = pd.to_numeric(df['UnitPrice'], errors='coerce')
     df['InvoiceDate'] = pd.to_datetime(df['InvoiceDate'], errors='coerce').fillna(pd.Timestamp('1970-01-01'))
@@ -377,14 +416,23 @@ def get_budget_products():
                 continue
             store = _store_from_product_id(row.get('ProductID'))
             seed  = abs(hash(str(row.get('ProductID')))) % 8
+            product_category = str(row.get('Category') or label).strip() or label
+            specs = _parse_specs(
+                row.get('Specifications'),
+                fallback={
+                    'Brand': str(row.get('Brand') or '').strip(),
+                    'Category': product_category,
+                },
+            )
             products.append({
                 'id':    str(row.get('ProductID') or ''),
                 'name':  name,
                 'price': round(_safe_number(row.get('UnitPrice')), 2),
                 'img':   str(row.get('ImageURL') or '').strip(),
-                'cat':   str(row.get('Category') or label).strip() or label,
+                'cat':   product_category,
                 'sub_category': str(row.get('SubCategory') or '').strip(),
                 'brand': str(row.get('Brand') or '').strip(),
+                'specs': specs,
                 'store': store,
                 'rating': round(min(4.2 + seed * 0.1, 4.9), 1),
                 'in_range': bool(min_price <= _safe_number(row.get('UnitPrice')) <= max_price),
