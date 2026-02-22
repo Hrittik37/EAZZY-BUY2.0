@@ -332,22 +332,6 @@
     }
     .hint-chip:hover { color: var(--accent3); border-color: var(--accent3); }
 
-    /*  ROBOT FIGURE  */
-    .robot-figure {
-      position: absolute;
-      bottom: -20px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 1;
-      opacity: .08;
-      pointer-events: none;
-      animation: float 6s ease-in-out infinite;
-    }
-    @keyframes float {
-      0%,100%{ transform: translateX(-50%) translateY(0); }
-      50%{ transform: translateX(-50%) translateY(-18px); }
-    }
-
     /*  FEATURE STRIP  */
     .feature-strip {
       position: relative; z-index: 2;
@@ -1622,7 +1606,34 @@
       display: flex;
       flex-direction: column;
       gap: .75rem;
+      align-items: center;
+      justify-content: center;
       flex-shrink: 0;
+    }
+    .promo-logo-frame {
+      width: clamp(165px, 19vw, 245px);
+      aspect-ratio: 1 / 1;
+      padding: 6px;
+      border-radius: 50%;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 30% 25%, rgba(12, 36, 44, .95) 0%, rgba(5, 10, 16, .98) 70%);
+      border: 1.5px solid rgba(201,255,60,.35);
+      box-shadow:
+        0 0 0 8px rgba(5, 10, 16, .62),
+        0 14px 36px rgba(0, 0, 0, .42),
+        0 0 28px rgba(60,255,223,.18);
+    }
+    .promo-logo {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      border-radius: 50%;
+      border: none;
+      image-rendering: auto;
+      filter: none;
+      transform: none;
+      transform-origin: center;
     }
     .stat-pill {
       display: flex; align-items: center; gap: 12px;
@@ -2459,29 +2470,6 @@
     </div>
   </div>
 
-  <!-- decorative robot SVG -->
-  <div class="robot-figure" aria-hidden="true">
-    <svg width="360" height="400" viewBox="0 0 360 400" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <ellipse cx="180" cy="380" rx="100" ry="12" fill="rgba(201,255,60,0.15)"/>
-      <rect x="120" y="120" width="120" height="130" rx="20" fill="none" stroke="rgba(201,255,60,0.6)" stroke-width="2"/>
-      <circle cx="155" cy="165" r="18" fill="none" stroke="rgba(201,255,60,0.5)" stroke-width="1.5"/>
-      <circle cx="205" cy="165" r="18" fill="none" stroke="rgba(201,255,60,0.5)" stroke-width="1.5"/>
-      <circle cx="155" cy="165" r="8" fill="rgba(60,255,223,0.4)"/>
-      <circle cx="205" cy="165" r="8" fill="rgba(60,255,223,0.4)"/>
-      <rect x="148" y="200" width="64" height="22" rx="11" fill="none" stroke="rgba(255,77,46,0.6)" stroke-width="1.5"/>
-      <rect x="155" y="207" width="12" height="8" rx="4" fill="rgba(255,77,46,0.5)"/>
-      <rect x="172" y="207" width="12" height="8" rx="4" fill="rgba(255,77,46,0.5)"/>
-      <rect x="189" y="207" width="12" height="8" rx="4" fill="rgba(255,77,46,0.5)"/>
-      <rect x="160" y="85" width="40" height="35" rx="6" fill="none" stroke="rgba(201,255,60,0.5)" stroke-width="1.5"/>
-      <line x1="180" y1="85" x2="180" y2="120" stroke="rgba(201,255,60,0.5)" stroke-width="1.5"/>
-      <circle cx="180" cy="78" r="8" fill="none" stroke="rgba(201,255,60,0.5)" stroke-width="1.5"/>
-      <circle cx="180" cy="78" r="3" fill="rgba(201,255,60,0.6)"/>
-      <rect x="90" y="140" width="30" height="80" rx="15" fill="none" stroke="rgba(201,255,60,0.4)" stroke-width="1.5"/>
-      <rect x="240" y="140" width="30" height="80" rx="15" fill="none" stroke="rgba(201,255,60,0.4)" stroke-width="1.5"/>
-      <rect x="130" y="250" width="40" height="110" rx="10" fill="none" stroke="rgba(201,255,60,0.4)" stroke-width="1.5"/>
-      <rect x="190" y="250" width="40" height="110" rx="10" fill="none" stroke="rgba(201,255,60,0.4)" stroke-width="1.5"/>
-    </svg>
-  </div>
 </section>
 
 <!--  TICKER  -->
@@ -3326,6 +3314,15 @@
     <div class="promo-btns">
       <button class="btn-primary">Try It Free</button>
       <button class="btn-ghost">How It Works</button>
+    </div>
+  </div>
+  <div class="promo-right">
+    <div class="promo-logo-frame">
+      <img
+        class="promo-logo"
+        src="/static/logo.png"
+        alt="Swami Vivekananda University logo"
+      >
     </div>
   </div>
   <!-- <div class="promo-right">
